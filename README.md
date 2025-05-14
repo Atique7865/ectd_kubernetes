@@ -108,7 +108,7 @@ sudo cp etcd-v3.5.9-linux-amd64/etcdctl /usr/local/bin/
 
 ---
 
-## ✅ Step 7: View Snapshot Status in Table Format
+## ✅ Step 7: View Snapshot Status in Table Format....
 
 ```bash
 sudo ETCDCTL_API=3 etcdctl --write-out=table snapshot status snapshot.db
@@ -118,13 +118,82 @@ sudo ETCDCTL_API=3 etcdctl --write-out=table snapshot status snapshot.db
 
 ---
 
-## 🎉 You're Done!
+# etcd Snapshot Restore Guide (Bangla)
 
-You have successfully:
+এই গাইডে আপনি শিখবেন কীভাবে একটি etcd snapshot (ব্যাকআপ ফাইল) তৈরি ও তা থেকে Kubernetes cluster পুনরুদ্ধার (restore) করতে হয়।
 
-* Checked etcd version
-* Installed etcd locally
-* Created a backup
-* Verified backup status
+---
 
-For etcd snapshot restore steps, ask your assistant for the next guide!
+## ✅ Step 0: Take etcd Snapshot (Backup)
+
+```bash
+sudo ETCDCTL_API=3 etcdctl snapshot save snapshot.db \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key
+```
+
+🔹 **কার্য:** বর্তমান ইটিসিডি ডেটার একটি ব্যাকআপ `snapshot.db` নামে তৈরি হয়।
+
+---
+
+## ✅ Step 1: Purge Existing etcd Data
+
+```bash
+rm -rf /var/lib/etcd
+```
+
+🔹 **কার্য:** পুরনো etcd ডেটা ডিরেক্টরি মুছে ফেলুন, যাতে নতুন snapshot থেকে পরিষ্কারভাবে restore করা যায়।
+
+---
+
+## ✅ Step 2: Restore etcd from Snapshot
+
+```bash
+ETCDCTL_API=3 etcdctl snapshot restore snapshot.db \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key \
+  --name=k8sCluster \
+  --data-dir=/var/lib/etcd \
+  --initial-cluster-token=etcd-cluster-1 \
+  --initial-cluster=k8sCluster=https://192.168.0.200:2380 \
+  --initial-advertise-peer-urls=https://192.168.0.200:2380
+```
+
+🔹 **কার্য:** `snapshot.db` ফাইল থেকে etcd ডেটা `/var/lib/etcd` এ restore করা হচ্ছে। এতে cluster configuration নতুন করে rebuild হয়।
+
+---
+
+## ✅ Step 3: Update etcd Static Pod Manifest (if necessary)
+
+```bash
+sudo nano /etc/kubernetes/manifests/etcd.yaml
+```
+
+🔹 **কার্য:** `--data-dir=/var/lib/etcd` লাইনটি নিশ্চিত করুন restored data path অনুযায়ী।
+
+📌 Save করে বের হোন, kubelet এটি detect করে etcd pod আবার চালাবে।
+
+---
+
+## ✅ Step 4: Verify etcd and Kubernetes Recovery
+
+```bash
+kubectl get all -A
+```
+
+🔹 **কার্য:** সমস্ত namespace-এ আপনার deployments, services, configmaps, ইত্যাদি পুরোনো অবস্থায় ফিরে এসেছে কিনা যাচাই করুন।
+
+---
+
+## 📝 Notes
+
+* এই পদ্ধতিটি শুধুমাত্র তখনই কাজ করবে যদি snapshot নেওয়ার সময় আপনার cluster-এর কাঠামো সঠিক ছিল।
+* এটি সাধারণত disaster recovery অথবা configuration rollback এর জন্য ব্যবহৃত হয়।
+
+---
+
+## 🎉 শেষ কথা:
+
+আপনি সফলভাবে ইটিসিডি স্ন্যাপশট থেকে একটি ক্লাস্টার স্টেট পুনরুদ্ধার করতে শিখলেন। এখন চাইলে আপনি এটি আপনার cluster setup automation বা GitHub backup strategy-তে অন্তর্ভুক্ত করতে পারেন।
