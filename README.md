@@ -62,7 +62,7 @@ etcdctl version
 ## ✅ Step 4: List etcd Cluster Members
 
 ```bash
-export ENDPOINT=https://192.168.0.200:2380
+export ENDPOINT=https://192.168.0.200:2379
 
 ETCDCTL_API=3 etcdctl \
 --cert=/etc/kubernetes/pki/etcd/server.crt \
